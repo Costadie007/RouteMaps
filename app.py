@@ -1,4 +1,7 @@
+import json
 import math
+from datetime import datetime
+from pathlib import Path
 
 import folium
 import streamlit as st
@@ -7,6 +10,8 @@ from streamlit_folium import st_folium
 
 # centro inicial do mapa: troque pelas coordenadas da sua região
 CENTRO = (-15.78, -47.93)
+
+ARQUIVO_ROTAS = Path("rotas.json")
 
 # velocidades médias em km/h: valores de partida, ajuste ao seu ritmo
 VELOCIDADES_KMH = {
@@ -40,6 +45,19 @@ def formatar_tempo(horas):
     if h:
         return f"{h} h {m:02d} min"
     return f"{m} min"
+
+
+def carregar_rotas():
+    if ARQUIVO_ROTAS.exists():
+        return json.loads(ARQUIVO_ROTAS.read_text(encoding="utf-8"))
+    return []
+
+
+def salvar_rotas(rotas):
+    ARQUIVO_ROTAS.write_text(
+        json.dumps(rotas, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 st.set_page_config(page_title="Planejador de rotas", layout="wide")
@@ -83,5 +101,31 @@ if len(pontos) >= 2:
     col1, col2 = st.columns(2)
     col1.metric("Distância", f"{km:.2f} km")
     col2.metric("Tempo estimado", formatar_tempo(horas))
+
+    nome = st.text_input("Nome da rota")
+    if st.button("Salvar rota"):
+        if not nome.strip():
+            st.warning("Dê um nome para a rota antes de salvar.")
+        else:
+            rotas = carregar_rotas()
+            rotas.append({
+                "nome": nome.strip(),
+                "modo": modo,
+                "km": round(km, 3),
+                "tempo_h": round(horas, 4),
+                "pontos": pontos,
+                "criada_em": datetime.now().isoformat(timespec="seconds"),
+            })
+            salvar_rotas(rotas)
+            st.success("Rota salva.")
 else:
     st.info("Use a ferramenta de linha no canto do mapa para desenhar a rota.")
+
+st.subheader("Rotas salvas")
+rotas_salvas = carregar_rotas()
+if not rotas_salvas:
+    st.write("Nenhuma rota salva ainda.")
+for r in rotas_salvas:
+    st.write(
+        f"{r['nome']} | {r['modo']} | {r['km']:.2f} km | {formatar_tempo(r['tempo_h'])}"
+    )
