@@ -1,3 +1,5 @@
+import math
+
 import folium
 import streamlit as st
 from folium.plugins import Draw
@@ -10,6 +12,20 @@ SATELITE = (
     "https://server.arcgisonline.com/ArcGIS/rest/services/"
     "World_Imagery/MapServer/tile/{z}/{y}/{x}"
 )
+
+
+def haversine_km(a, b):
+    raio_terra_km = 6371.0
+    lat1, lon1 = math.radians(a[0]), math.radians(a[1])
+    lat2, lon2 = math.radians(b[0]), math.radians(b[1])
+    h = (math.sin((lat2 - lat1) / 2) ** 2
+         + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2)
+    return 2 * raio_terra_km * math.asin(math.sqrt(h))
+
+
+def distancia_km(pontos):
+    return sum(haversine_km(pontos[i], pontos[i + 1]) for i in range(len(pontos) - 1))
+
 
 st.set_page_config(page_title="Planejador de rotas", layout="wide")
 st.title("Planejador de rotas")
@@ -42,5 +58,8 @@ for desenho in resultado.get("all_drawings") or []:
         # o GeoJSON guarda (longitude, latitude), então invertemos para (lat, lon)
         pontos = [(lat, lon) for lon, lat in desenho["geometry"]["coordinates"]]
 
-st.write(f"Pontos desenhados: {len(pontos)}")
-st.write(pontos)
+if len(pontos) >= 2:
+    km = distancia_km(pontos)
+    st.metric("Distância", f"{km:.2f} km")
+else:
+    st.info("Use a ferramenta de linha no canto do mapa para desenhar a rota.")
