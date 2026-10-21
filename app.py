@@ -60,72 +60,19 @@ def salvar_rotas(rotas):
     )
 
 
+def excluir_rota(indice):
+    rotas = carregar_rotas()
+    rotas.pop(indice)
+    salvar_rotas(rotas)
+    # volta o seletor para "Nenhuma", senão ele apontaria para uma rota que não existe mais
+    st.session_state["rota_escolhida"] = None
+
+
 st.set_page_config(page_title="Planejador de rotas", layout="wide")
 st.title("Planejador de rotas")
 
 modo = st.radio("Modo", list(VELOCIDADES_KMH), horizontal=True)
 
-mapa = folium.Map(location=CENTRO, zoom_start=16, tiles=None)
-folium.TileLayer(SATELITE, attr="Esri World Imagery", name="Satélite").add_to(mapa)
-
-Draw(
-    draw_options={
-        "polyline": True,
-        "polygon": False,
-        "rectangle": False,
-        "circle": False,
-        "marker": False,
-        "circlemarker": False,
-    },
-    edit_options={"edit": True},
-).add_to(mapa)
-
-resultado = st_folium(
-    mapa,
-    key="mapa",
-    height=550,
-    use_container_width=True,
-    returned_objects=["all_drawings"],
-)
-
-pontos = []
-for desenho in resultado.get("all_drawings") or []:
-    if desenho["geometry"]["type"] == "LineString":
-        # o GeoJSON guarda (longitude, latitude), então invertemos para (lat, lon)
-        pontos = [(lat, lon) for lon, lat in desenho["geometry"]["coordinates"]]
-
-if len(pontos) >= 2:
-    km = distancia_km(pontos)
-    horas = km / VELOCIDADES_KMH[modo]
-
-    col1, col2 = st.columns(2)
-    col1.metric("Distância", f"{km:.2f} km")
-    col2.metric("Tempo estimado", formatar_tempo(horas))
-
-    nome = st.text_input("Nome da rota")
-    if st.button("Salvar rota"):
-        if not nome.strip():
-            st.warning("Dê um nome para a rota antes de salvar.")
-        else:
-            rotas = carregar_rotas()
-            rotas.append({
-                "nome": nome.strip(),
-                "modo": modo,
-                "km": round(km, 3),
-                "tempo_h": round(horas, 4),
-                "pontos": pontos,
-                "criada_em": datetime.now().isoformat(timespec="seconds"),
-            })
-            salvar_rotas(rotas)
-            st.success("Rota salva.")
-else:
-    st.info("Use a ferramenta de linha no canto do mapa para desenhar a rota.")
-
-st.subheader("Rotas salvas")
 rotas_salvas = carregar_rotas()
-if not rotas_salvas:
-    st.write("Nenhuma rota salva ainda.")
-for r in rotas_salvas:
-    st.write(
-        f"{r['nome']} | {r['modo']} | {r['km']:.2f} km | {formatar_tempo(r['tempo_h'])}"
-    )
+indice_aberto = st.selectbox(
+    "Abrir rota salva",
